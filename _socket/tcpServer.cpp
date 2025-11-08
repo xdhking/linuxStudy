@@ -20,12 +20,20 @@ void *brodcast(void* args){
         msg.pop();
         char buf[1024]={0};
         snprintf(buf,sizeof(buf)-1,"%s: %s",tmp.first,tmp.second);
+        vector<string> del;
         for(auto &client:mp){
             string key=client.first;
             tcpChild *tc=client.second;
             if(key==tmp.first)
                 continue;
-            tc->send(buf,strlen(buf));
+            int n=tc->send(buf,strlen(buf));
+            if(n<0){
+                del.push_back(key);
+                delete tc;
+            }
+        }
+        for(int i=0;i<del.size();i++){
+            mp.erase(del[i]);
         }
         pthread_mutex_unlock(&mutex);
     }
@@ -40,14 +48,17 @@ void *recv_routine(void *args){
     char buf[1024]={0};
     int ret=1;
     while(true){
-        ret=tc->recv(buf,sizeof(buf));
+        ret=tc->recv(buf,sizeof(buf)-1);
         if(ret==0){
             pthread_mutex_lock(&mutex);
+            delete mp[client_addr];
             mp.erase(client_addr);
             pthread_mutex_unlock(&mutex);
             break;
         }
+        buf[ret]='\0';
         string s=buf;
+        printf("%s\n",buf);
         pthread_mutex_lock(&mutex);
         msg.push({client_addr,s});
         pthread_cond_signal(&cond);
@@ -64,7 +75,7 @@ int main(){
     pthread_create(&bc,nullptr,brodcast,nullptr);
     pthread_detach(bc);
     while(true){
-        tcpChild *tc=new tcpChild(ts->start_accept());
+        tcpChild *tc=ts->start_accept();
         pthread_t tid;
         int n=pthread_create(&tid,nullptr,recv_routine,tc);
         pthread_detach(tid);

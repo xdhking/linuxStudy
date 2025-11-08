@@ -9,7 +9,9 @@ void *send_routine(void* args){
     tcpClient *tc=static_cast<tcpClient*>(args);
     while(true){
         char buf[1024]={0};
+        printf("请输入对话：");
         fgets(buf,sizeof(buf),stdin);
+        buf[strlen(buf)-1]='\0';
         tc->send(buf,strlen(buf));
     }
 }

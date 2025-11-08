@@ -195,15 +195,15 @@ namespace net
             }
         }
 
-        tcpChild start_accept(){
+        tcpChild* start_accept(){
             struct sockaddr_in addr;
-            socklen_t len;
+            socklen_t len=sizeof(addr);
             int fd=accept(_listen_fd,(struct sockaddr*)&addr,&len);
             if(fd<0){
                 perror("accept");
                 exit(ACCEPT_ERR);
             }
-            return tcpChild(fd,addr);
+            return new tcpChild(fd,addr);
         }
 
     private:
