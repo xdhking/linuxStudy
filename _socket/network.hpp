@@ -124,13 +124,16 @@ namespace net
         ~tcpChild(){
             close();
         }
+        //获取客户端的sockaddr_in
         struct sockaddr_in get_addr(){
             return _addr;
         }
+        //获取客户端端口
         uint16_t get_port(){
             uint16_t ret=ntohs(_addr.sin_port);
             return ret;
         }
+        //获取客户端ip
         std::string get_ip(){
             char buf[64];
             std::string ret;
@@ -138,6 +141,7 @@ namespace net
             ret=buf;
             return ret;
         }
+        //接收客户端发送的消息
         ssize_t recv(void *buf,const size_t &maxlen){
             ssize_t ret=::recv(_fd,buf,maxlen,0);
             if(ret==0){
@@ -145,11 +149,11 @@ namespace net
             }
             if(ret<0){
                 perror("recv");
-                exit(RECV_ERR);
+                // exit(RECV_ERR);
             }
             return ret;
         }
-
+        //向客户端发送消息
         ssize_t send(const void *buf,const size_t len){
             ssize_t ret=::send(_fd,buf,len,0);
             if(ret<0){
@@ -173,6 +177,7 @@ namespace net
             close();
         }
         void initServer(){
+            //经典三步走：创建套接字->bind->listen
             _listen_fd=socket(AF_INET,SOCK_STREAM,0);
             if(_listen_fd<0){
                 perror("socket");
@@ -194,7 +199,7 @@ namespace net
                 exit(LISTEN_ERR);
             }
         }
-
+        //接收连接上的的客户端，返回一个tcpChild类型的指针，用于与客户端通讯
         tcpChild* start_accept(){
             struct sockaddr_in addr;
             socklen_t len=sizeof(addr);
@@ -222,6 +227,7 @@ namespace net
             close();
         }
         void initClient(){
+            //socket->connect
             _fd=socket(AF_INET,SOCK_STREAM,0);
             if(_fd<0){
                 perror("socket");
@@ -238,7 +244,7 @@ namespace net
                 exit(CONNECT_ERR);
             }
         }
-
+        //接收服务端消息
         ssize_t recv(void *buf,const size_t &maxlen){
             ssize_t ret=::recv(_fd,buf,maxlen,0);
             if(ret==0){
@@ -250,7 +256,7 @@ namespace net
             }
             return ret;
         }
-
+        //向服务端发送消息
         ssize_t send(const void *buf,const size_t len){
             ssize_t ret=::send(_fd,buf,len,0);
             if(ret<0){

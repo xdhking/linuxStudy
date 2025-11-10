@@ -1,0 +1,5 @@
+1.守护进程：自成会话，自成进程组，和终端设备无关
+2.守护进程化接口：int daemon(int nochdir,int noclose); setsid;
+3.文件黑洞：/dev/null只要往这个文件里面写的内容都会被丢弃掉
+4.重定向：dup2
+5.序列化：json,protobuf; jsoncpp库安装 ->  yum install jsoncpp-devel,安装目录：/usr/include/json，/lib64/libjsoncpp.so*
