@@ -57,6 +57,15 @@ select缺陷:
 
 14.多路转接poll：
 解决select的fd上限问题，以及每次调用都需要重新设置关心的fd的问题
+#include <poll.h>
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+struct pollfd {
+    int   fd;         // 要监控的文件描述符（如 socket、stdin 等）
+                      // 若 fd = -1，则 poll 会忽略该元素，不监控
+    short events;     // 关注的事件（输入参数，通过位掩码指定）
+    short revents;    // 实际发生的事件（输出参数，由内核填充）
+};
+
 
 15.文件改非阻塞
 int fl = fcntl(fd, F_GETFL);       // 先获取当前标志

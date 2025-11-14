@@ -15,6 +15,7 @@ int routine(int sock){
     buffer[n-1]='\0';
     cout<<"client# "<<buffer<<endl;
     logMessage(NORMAL,"receive is successful");
+    send(sock,"已收到",strlen("已收到"),0);
     return 1;
 }
 

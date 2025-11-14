@@ -6,7 +6,7 @@
 #include<cstring>
 #include<unistd.h>
 #include<sys/socket.h>
-#include<sys/select.h>
+#include<poll.h>
 #include<arpa/inet.h>
 #include<netinet/ip.h>
 #include<netinet/in.h>
@@ -16,12 +16,15 @@ class server{
     using func_t=std::function<int(int)>;
 public:
     server(const uint16_t &port):_port(port){
-        fdarry=new int[FD_NUM];
+        fds=new pollfd[FD_NUM];
         for(int i=0;i<FD_NUM;i++){
-            fdarry[i]=defaultval;
+            fds[i].fd=defaultval;
+            fds[i].events=0;
+            fds[i].revents=0;
         }
         _listenfd=socket(AF_INET,SOCK_STREAM,0);
-        fdarry[0]=_listenfd;
+        fds[0].fd=_listenfd;
+        fds[0].events=POLLIN;
     }
     void init(){
         struct sockaddr_in local;
@@ -34,8 +37,9 @@ public:
     }
     void insert(int fd){
         for(int i=1;i<FD_NUM;i++){
-            if(fdarry[i]!=defaultval) continue;
-            fdarry[i]=fd;
+            if(fds[i].fd!=defaultval) continue;
+            fds[i].fd=fd;
+            fds[i].events=POLLIN;
             return;
         }
         logMessage(WARNING,"fdarry is full");
@@ -43,15 +47,7 @@ public:
     }
     void start(func_t routine){
         while(true){
-            fd_set rfds;
-            FD_ZERO(&rfds);
-            maxfd=0;
-            for(int i=0;i<FD_NUM;i++){
-                if(fdarry[i]==defaultval) continue;
-                FD_SET(fdarry[i],&rfds);
-                maxfd=std::max(maxfd,fdarry[i]);
-            }
-            int n=select(maxfd+1,&rfds,nullptr,nullptr,nullptr);
+            int n=poll(fds,FD_NUM,-1);
             if(n==0){
                 logMessage(NORMAL,"timeout...");
             }
@@ -59,19 +55,21 @@ public:
                 logMessage(ERROR,"error");
             }
             else{
-                if(FD_ISSET(fdarry[0],&rfds)){
+                if(fds[0].fd==_listenfd&&(fds[0].revents&POLLIN)){
                     struct sockaddr in;
                     socklen_t len=sizeof(in);
                     int fd=accept(_listenfd,&in,&len);
                     insert(fd);
                 }
                 for(int i=1;i<FD_NUM;i++){
-                    if(fdarry[i]==defaultval) continue;
-                    if(FD_ISSET(fdarry[i],&rfds)){
-                        int ret=routine(fdarry[i]);
+                    if(fds[i].fd==defaultval) continue;
+                    if(fds[i].revents&POLLIN){
+                        int ret=routine(fds[i].fd);
                         if(ret==0){
-                            close(fdarry[i]);
-                            fdarry[i]=defaultval;
+                            close(fds[i].fd);
+                            fds[i].fd=defaultval;
+                            fds[i].events=0;
+                            fds[i].revents=0;
                         }
                     }
                 }
@@ -80,11 +78,11 @@ public:
     }
     ~server(){
         close(_listenfd);
-        delete []fdarry;
+        delete []fds;
     }
 private:
     int _listenfd;
     uint16_t _port;
-    int *fdarry;
+    pollfd *fds;
     int maxfd;
 };
