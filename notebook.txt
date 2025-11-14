@@ -3,3 +3,74 @@
 3.文件黑洞：/dev/null只要往这个文件里面写的内容都会被丢弃掉
 4.重定向：dup2
 5.序列化：json,protobuf; jsoncpp库安装 ->  yum install jsoncpp-devel,安装目录：/usr/include/json，/lib64/libjsoncpp.so*
+6.图片，视频等非文本文件不能用读取文本的方式读取，比如getline按行读取，必须用read方法二进制读取
+7.pidof 进程名 ，能够把指定进程的pid打印出来
+8.xargs 指令...  ，能够把上一个指令输出到管道的内容，添加到当前指令的后面
+用法例如：pidof 进程名 | xargs kill -9  ; 杀死指定进程
+
+9.netstat,用于查看本地链接和服务的指令
+用法：netstat -nltp
+n表示能显示数字的就显示数字，没有就显示名称
+l表示只查询listen状态的服务，没有就查询其他状态的
+t表示只查询tcp协议，u（udp）同理
+p表示显示服务所对应的进程信息
+a显示所有用户的
+
+
+10.int opt = 1;//设置套接字复用
+setsockopt(listenfd,SOL_SOCKET,SO_RUSEADDR,&opt,sizeof(opt));
+SO_REUSEADDR 是 setsockopt 中常用的选项，用于启用端口复用。它的主要功能包括：
+允许在端口处于 TIME_WAIT 状态时重新绑定。
+允许多个实例绑定到同一端口，但需绑定不同的本地 IP 地址。
+对于支持多播的系统，允许多个套接字绑定到同一多播地址和端口。
+
+11.listen的第二个参数是用来维护全链接的长度(已经三次握手，但没有accept取走的个数)
+
+12.echo $?查看上一条可执行命令的退出码
+
+13.多路转接select:
+int select(int nfds,fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
+nfds:select要监视多个fd中值最大的fd+1
+返回值：ret>0 有几个fd就绪了
+        ret=0 超时返回了(无事件就绪)
+        ret<0 select 调用失败，erron被设置
+timeout: nullptr阻塞式，struct timeval timeout={0,0};非阻塞式
+struct timeval{
+    time_t tv_sec;秒
+    suseconds_t tv_usec;微秒
+}
+fd_set(输入输出型,位图结构):
+    输入：表示哪些fd需要监视
+    输出：表示哪些fd已经就绪
+listensock可以交给select，因为listensock的连接就绪事件==读事件就绪
+操作fd_set的接口：
+void FD_CLR(int fd,fd_set *set);//指定位置设“0”
+int FD_ISSET(int fd, fd_set *set);//判断指定位置是否为“1”
+void FD_SET(int fd, fd_set *set);//指定位置设“1”
+void FD_ZERO(fd_set *set);//位图清零
+select缺陷:
+(1).select能同时等待的文件fd是有上限的，由内核决定
+(2).必须借助第三方数组，来维护合法的fd
+(3).select的大部分参数是输入输出型，调用select前，需要重新设置所有的fd，调用之后，还需检查更新的所有fd，带来了遍历成本
+(4).select需要指定fd+1的遍历范围，由内核遍历
+(5)采用位图，用户->内核，内核->用户，来回的进行数据拷贝，增加拷贝成本
+
+14.多路转接poll：
+解决select的fd上限问题，以及每次调用都需要重新设置关心的fd的问题
+
+15.文件改非阻塞
+int fl = fcntl(fd, F_GETFL);       // 先获取当前标志
+fcntl(fd, F_SETFL, fl | O_NONBLOCK);  // 追加非阻塞标志
+
+15.多路转接epoll:
+int epoll_create(int size);//创建一个epoll模型，成功返回一个fd，错误返回-1，erron被设置
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);//告诉内核关心哪些fd的哪些事件
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+
+16.可变参数：<stdarg.h><cstdarg>
+va_list：一种类型，用于声明一个 “可变参数指针”（保存可变参数的地址信息）。
+va_start：宏，初始化 va_list 变量，使其指向第一个可变参数。
+va_arg：宏，从 va_list 中提取下一个参数（需指定类型），并自动移动指针到下一个参数。
+va_end：宏，结束可变参数的访问，释放相关资源（避免内存泄漏）。
+
+17.vsnprintf 与 snprintf 的核心区别是：vsnprintf 接收的是 va_list 类型的可变参数列表（适合在自定义可变参数函数中调用），而 snprintf 直接接收可变参数（...）。
