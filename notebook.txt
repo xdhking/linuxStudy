@@ -71,10 +71,43 @@ struct pollfd {
 int fl = fcntl(fd, F_GETFL);       // 先获取当前标志
 fcntl(fd, F_SETFL, fl | O_NONBLOCK);  // 追加非阻塞标志
 
+
+
 15.多路转接epoll:
 int epoll_create(int size);//创建一个epoll模型，成功返回一个fd，错误返回-1，erron被设置
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);//告诉内核关心哪些fd的哪些事件
+struct epoll_event {
+    uint32_t     events;  // 关注的事件（输入）或就绪的事件（输出）
+    epoll_data_t data;    // 用户数据（通常绑定 FD 或自定义数据）
+};
+
+// data 是一个联合体，可存储 FD 或指针：
+typedef union epoll_data {
+    void    *ptr;  // 自定义指针（如连接上下文）
+    int      fd;   // 通常存储被监控的文件描述符
+    uint32_t u32;
+    uint64_t u64;
+} epoll_data_t;
+op：操作类型（EPOLL_CTL_ADD：添加 FD；EPOLL_CTL_MOD：修改 FD 的事件；EPOLL_CTL_DEL：删除 FD）。
+移除一个fd的时候，先用epoll_ctl,再用close，因为如果epoll_ctl传入一个非法fd会报错
+event:
+EPOLLIN : 表示对应的文件描述符可以读 (包括对端SOCKET正常关闭);
+EPOLLOUT : 表示对应的文件描述符可以写;
+EPOLLPRI : 表示对应的文件描述符有紧急的数据可读 (这里应该表示有带外数据到来);
+EPOLLERR : 表示对应的文件描述符发生错误;
+EPOLLHUP : 表示对应的文件描述符被挂断;
+EPOLLET : 将EPOLL设为边缘触发(Edge Triggered)模式, 这是相对于水平触发(Level Triggered)来说的.
+EPOLLONESHOT：只监听一次事件, 当监听完这次事件之后, 如果还需要继续监听这个socket的话, 需要
+再次把这个socket加入到EPOLL队列里
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+
+ET模式下，由于只会通知一次，就要求必须要将本轮的数据全部循环读取完，如果是阻塞读取，由于多路转接只有一个线程，当没有数据读取的时候整个线程会阻塞住，所以要求fd必须是非阻塞的
+ET的高效性：(1),倒逼程序员一次性读取完
+            (2),尽快让上层把数据取走->tcp可以提供一个更大的窗口大小->让对方更新出更大的滑动窗口->提高底层的数据发送效率
+tcp中PSH的作用就是让ET模式下的epoll再通知一下上层读取数据
+
+在发送数据的时候，如果没有发送完毕，需要对对应的sock开启对写事件的关心，如果发完了，我们要关闭对写事件的关心
+
 
 16.可变参数：<stdarg.h><cstdarg>
 va_list：一种类型，用于声明一个 “可变参数指针”（保存可变参数的地址信息）。
